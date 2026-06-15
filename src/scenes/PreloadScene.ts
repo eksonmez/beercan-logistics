@@ -99,8 +99,8 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private _createProceduralTextures(): void {
-    this._makeTile(AssetKeys.TILES.FLOOR,      0x4a7c59, 0x3a6049, 0x2d4d38);
-    this._makeTile(AssetKeys.TILES.WALL,       0x8b6914, 0x6b4a0a, 0x4a3207);
+    this._makeTile(AssetKeys.TILES.FLOOR,      0xd4c89a, 0xb09060, 0x8c7040);
+    this._makeTile(AssetKeys.TILES.WALL,       0x8b5e2a, 0x6b4018, 0x4d2c0a);
     this._makeTile(AssetKeys.TILES.SHELF_BASE, 0x7a5c3a, 0x5c4020, 0x3d2a12);
 
     const types = ['lager', 'ale', 'stout', 'pilsner'] as const;
@@ -140,6 +140,15 @@ export class PreloadScene extends Phaser.Scene {
       { x: w,     y: h / 2 + d },
       { x: w / 2, y: h + d },
     ], true);
+
+    // Zemin tile ise üstüne depo yer işareti şeritleri çiz
+    if (key === AssetKeys.TILES.FLOOR) {
+      g.lineStyle(2, 0xe8c84a, 0.55);
+      // Sol diyagonal şerit (diamond boyunca)
+      g.lineBetween(w * 0.18, h * 0.59, w * 0.5, h * 0.28);
+      // Sağ diyagonal şerit
+      g.lineBetween(w * 0.5, h * 0.72, w * 0.82, h * 0.41);
+    }
 
     g.lineStyle(1, 0x000000, 0.4);
     g.strokePoints([
@@ -193,7 +202,36 @@ export class PreloadScene extends Phaser.Scene {
       { x: cw / 2, y: ch + cd },
     ], true);
 
-    g.lineStyle(1, 0x000000, 0.5);
+    // Üst yüz vurgusu — kuzey köşesinde hafif aydınlık üçgen
+    const highlightColor = this._darken(baseColor, 1.35);
+    g.fillStyle(highlightColor, 0.45);
+    g.fillPoints([
+      { x: cw / 2, y: 0 },
+      { x: cw * 0.72, y: ch * 0.36 },
+      { x: cw / 2, y: ch * 0.5 },
+      { x: cw * 0.28, y: ch * 0.36 },
+    ], true);
+
+    // Etiket bandı — sol ve sağ yüzün orta kısmında krem şerit
+    const bandY = ch + cd * 0.42;
+    const bandH = 3;
+    g.fillStyle(0xf0ead8, 0.82);
+    // Sol yüz bandı
+    g.fillPoints([
+      { x: 0,      y: bandY - 1 },
+      { x: cw / 2, y: bandY + bandH - 1 },
+      { x: cw / 2, y: bandY + bandH + 1 },
+      { x: 0,      y: bandY + 1 },
+    ], true);
+    // Sağ yüz bandı
+    g.fillPoints([
+      { x: cw / 2, y: bandY + bandH - 1 },
+      { x: cw,     y: bandY - 1 },
+      { x: cw,     y: bandY + 1 },
+      { x: cw / 2, y: bandY + bandH + 1 },
+    ], true);
+
+    g.lineStyle(1, 0x000000, 0.7);
     g.strokePoints([
       { x: cw / 2, y: 0 }, { x: cw, y: ch / 2 }, { x: cw / 2, y: ch }, { x: 0, y: ch / 2 },
     ], true);
@@ -215,8 +253,8 @@ export class PreloadScene extends Phaser.Scene {
    * data gereklidir — texture.add() ile her frame manuel eklenir.
    */
   private _makeForkliftSheet(): void {
-    const fw   = FORKLIFT_FRAME.width;   // 48
-    const fh   = FORKLIFT_FRAME.height;  // 32
+    const fw   = FORKLIFT_FRAME.width;   // 72
+    const fh   = FORKLIFT_FRAME.height;  // 56
     const cols = FORKLIFT_FRAME.cols;    // 5
     const numDirs = ISO_DIRECTIONS.length; // 4
 
@@ -247,153 +285,180 @@ export class PreloadScene extends Phaser.Scene {
     dir: IsoDirection,
     frame: number,
   ): void {
-    const C_TOP    = 0xf5c542; // sarı üst yüz
-    const C_SIDE_L = 0xcc9c28; // koyu sarı sol yüz
-    const C_SIDE_R = 0x9e7a1c; // en koyu sarı sağ yüz
-    const C_MAST   = 0x4a3008; // koyu kahve mast
-    const C_GUARD  = 0xf0c840; // parlak sarı overhead guard
-    const C_FORK   = 0xd8d8d8; // gümüş fork üstü
-    const C_FORKD  = 0x909090; // koyu gümüş fork altı
-    const C_CW     = 0x3a3a3a; // koyu gri karşı ağırlık
-    const C_WHEEL  = 0x1c1c1c; // lastik
-    const OUT      = 0x000000;
+    // ── Renk paleti (referans: sarı kabin + kırmızı alt gövde) ──────
+    const C_CAB_TOP = 0xf5c233; // sarı üst yüz
+    const C_CAB_L   = 0xd4a020; // sarı sol yüz
+    const C_CAB_R   = 0xa87818; // sarı sağ/ön yüz (koyu)
+    const C_RED_L   = 0xcc2211; // kırmızı sol yüz
+    const C_RED_R   = 0x8a1606; // kırmızı sağ yüz (koyu)
+    const C_MAST    = 0x1e1e1e; // siyah mast
+    const C_GUARD   = 0xf0c030; // overhead guard (parlak sarı)
+    const C_FORK    = 0xcccccc; // fork üstü (gümüş)
+    const C_FORKD   = 0x888888; // fork altı (koyu gümüş)
+    const C_WHEEL   = 0x1a1a1a; // lastik
+    const C_RIM     = 0x7a6030; // jant (altın-kahve)
+    const C_WIN     = 0x4488bb; // kabin camı
+    const OUT       = 0x000000;
 
-    // Yön bayrakları
     const fR = dir === 'se' || dir === 'ne'; // forklar sağa
     const fD = dir === 'se' || dir === 'sw'; // forklar aşağı
-
-    // Hareket animasyonu: tek/çift frame'de 1px zıplama
     const bounce = (frame > 0 && frame % 2 === 1) ? 1 : 0;
 
-    // Gövde merkezi — fork yönü için yer açacak şekilde kaydırılmış
-    const bCX = ox + (fR ? 19 : 29);
-    const bCY = oy + 16 - bounce;
-    const bHW = 11; // iso diamond yarı-genişliği
-    const bHH = 6;  // iso diamond yarı-yüksekliği
-    const bSD = 10; // yan yüz görünür derinliği
+    // ── Gövde geometrisi ─────────────────────────────────────────────
+    // Fork yönüne göre gövdeyi kaydır, fork için yer aç
+    const bCX  = ox + (fR ? 30 : 42);
+    const bCY  = oy + 20 - bounce;
+    const bHW  = 16; // iso diamond yarı-genişliği
+    const bHH  = 8;  // iso diamond yarı-yüksekliği (2:1 oran)
+    const cabH = 12; // sarı kabin yan yüz yüksekliği
+    const redH = 8;  // kırmızı alt gövde yüksekliği
 
-    // Diamond 4 köşesi
     const vT = { x: bCX,       y: bCY - bHH };
     const vR = { x: bCX + bHW, y: bCY       };
     const vB = { x: bCX,       y: bCY + bHH };
     const vL = { x: bCX - bHW, y: bCY       };
 
-    // Yan yüzlerin alt kenarları
-    const vLB = { x: vL.x, y: vL.y + bSD };
-    const vBB = { x: vB.x, y: vB.y + bSD };
-    const vRB = { x: vR.x, y: vR.y + bSD };
+    // Kabin alt kenarları
+    const vLB = { x: vL.x, y: vL.y + cabH };
+    const vBB = { x: vB.x, y: vB.y + cabH };
+    const vRB = { x: vR.x, y: vR.y + cabH };
 
-    // ── Mast (arka tarafta, yukarı uzanan direk) ──────────────────────
-    const mastX   = fR ? vL.x - 1 : vR.x - 4;
-    const mastW   = 5;
-    const mastTop = oy + 1;
-    const mastBot = vT.y;
-    if (mastBot > mastTop) {
-      // Mast gövdesi — üç yüz (ince izometrik blok görünümü)
+    // Kırmızı alt gövde kenarları
+    const vLR = { x: vL.x, y: vL.y + cabH + redH };
+    const vBR = { x: vB.x, y: vB.y + cabH + redH };
+    const vRR = { x: vR.x, y: vR.y + cabH + redH };
+
+    // ── Mast (iki paralel direk) ──────────────────────────────────────
+    const mastTop = oy + 3;
+    const mastBot = vT.y + 1;
+    const mast1X  = fR ? vL.x - 1  : vR.x - 7;
+    const mast2X  = fR ? vL.x + 4  : vR.x - 2;
+    const mastH   = mastBot - mastTop;
+    if (mastH > 0) {
+      // Sol direk
       g.fillStyle(C_MAST);
-      g.fillRect(mastX, mastTop, mastW, mastBot - mastTop);
-      // Küçük ön yüz vurgusu
-      g.fillStyle(0x6a5010);
-      g.fillRect(fR ? mastX + mastW - 1 : mastX, mastTop, 1, mastBot - mastTop);
+      g.fillRect(mast1X, mastTop, 4, mastH);
+      g.fillStyle(0x3a3a3a);
+      g.fillRect(fR ? mast1X + 3 : mast1X, mastTop, 1, mastH);
       g.lineStyle(1, OUT, 0.55);
-      g.strokeRect(mastX, mastTop, mastW, mastBot - mastTop);
+      g.strokeRect(mast1X, mastTop, 4, mastH);
+      // Sağ direk
+      g.fillStyle(C_MAST);
+      g.fillRect(mast2X, mastTop, 4, mastH);
+      g.fillStyle(0x3a3a3a);
+      g.fillRect(fR ? mast2X + 3 : mast2X, mastTop, 1, mastH);
+      g.lineStyle(1, OUT, 0.55);
+      g.strokeRect(mast2X, mastTop, 4, mastH);
+      // Mastları birleştiren yatay bar
+      g.fillStyle(C_MAST);
+      g.fillRect(Math.min(mast1X, mast2X), mastTop + 3, Math.abs(mast2X - mast1X) + 4, 3);
     }
 
-    // ── Overhead guard (mast tepesinden kabine uzanan koruma çerçevesi) ─
-    const guardEndX = fR ? vR.x + 2 : vL.x - 2;
-    const guardEndY = mastTop + (fD ? 3 : 0);
-    g.lineStyle(3, C_GUARD, 1.0);
-    g.lineBetween(mastX + mastW / 2, mastTop, guardEndX, guardEndY);
-    g.lineStyle(1, OUT, 0.3);
-    g.lineBetween(mastX + mastW / 2, mastTop, guardEndX, guardEndY);
+    // ── Overhead guard (kabinin üzerini kaplayan koruma çerçevesi) ───
+    const guardSX = fR ? mast2X + 2 : mast1X + 2;
+    const guardEX = fR ? vR.x + 4   : vL.x - 4;
+    const guardEY = mastTop + (fD ? 5 : 1);
+    g.lineStyle(4, C_GUARD);
+    g.lineBetween(guardSX, mastTop, guardEX, guardEY);
+    g.lineStyle(1, OUT, 0.35);
+    g.lineBetween(guardSX, mastTop, guardEX, guardEY);
 
-    // ── Gövde (ISO kutu, 3 görünür yüz) ─────────────────────────────
-    // Sol yüz (kameraya bakan daha açık yüz)
-    g.fillStyle(C_SIDE_L);
+    // ── Kırmızı alt gövde yüzleri ────────────────────────────────────
+    g.fillStyle(C_RED_L);
+    g.fillPoints([vLB, vBB, vBR, vLR], true);
+    g.fillStyle(C_RED_R);
+    g.fillPoints([vRB, vBB, vBR, vRR], true);
+
+    // ── Sarı kabin yüzleri ───────────────────────────────────────────
+    g.fillStyle(C_CAB_L);
     g.fillPoints([vL, vB, vBB, vLB], true);
-
-    // Sağ / ön yüz (biraz daha koyu)
-    g.fillStyle(C_SIDE_R);
+    g.fillStyle(C_CAB_R);
     g.fillPoints([vR, vB, vBB, vRB], true);
 
-    // Üst yüz
-    g.fillStyle(C_TOP);
+    // ── Üst yüz (diamond) ────────────────────────────────────────────
+    g.fillStyle(C_CAB_TOP);
     g.fillPoints([vT, vR, vB, vL], true);
 
-    // Kabin camı — ön yüzde küçük mavi dörtgen
-    const winX = fR ? (vR.x + vB.x) / 2 - 3 : (vL.x + vB.x) / 2 - 3;
+    // ── Kabin camı ───────────────────────────────────────────────────
+    const winFaceX = fR ? (vR.x + vB.x) / 2 : (vL.x + vB.x) / 2;
+    const winX = Math.round(winFaceX) - 4;
     const winY = bCY + 2;
-    g.fillStyle(0x5599cc);
-    g.fillRect(winX, winY, 6, 5);
-    g.lineStyle(1, OUT, 0.5);
-    g.strokeRect(winX, winY, 6, 5);
+    g.fillStyle(C_WIN);
+    g.fillRect(winX, winY, 8, 7);
+    g.fillStyle(0xaaddff, 0.5);
+    g.fillRect(winX + 1, winY + 1, 3, 2);
+    g.lineStyle(1, OUT, 0.45);
+    g.strokeRect(winX, winY, 8, 7);
 
-    // Gövde dış çizgileri
-    g.lineStyle(1, OUT, 0.7);
+    // ── Dış çizgiler ─────────────────────────────────────────────────
+    g.lineStyle(1, OUT, 0.8);
     g.strokePoints([vT, vR, vB, vL], true);
-    g.strokePoints([vL, vLB, vBB, vB], false);
-    g.strokePoints([vR, vRB, vBB], false);
+    g.strokePoints([vL, vLB], false);
+    g.strokePoints([vR, vRB], false);
+    g.strokePoints([vB, vBB], false);
+    g.lineStyle(1, OUT, 0.6);
+    g.strokePoints([vLB, vBB, vRB], false);
+    g.strokePoints([vLB, vLR], false);
+    g.strokePoints([vRB, vRR], false);
+    g.strokePoints([vBB, vBR], false);
+    g.strokePoints([vLR, vBR, vRR], false);
 
-    // ── Karşı ağırlık bloğu (arka-alt) ──────────────────────────────
-    const cwX = fR ? vLB.x - 5 : vRB.x;
-    const cwY = vBB.y - 7;
-    g.fillStyle(C_CW);
-    g.fillRect(cwX, cwY, 5, 7);
-    // Üst yüz vurgusu
-    g.fillStyle(0x555555);
-    g.fillPoints([
-      { x: cwX,   y: cwY },
-      { x: cwX+5, y: cwY - 2 },
-      { x: cwX+5, y: cwY },
-      { x: cwX,   y: cwY + 2 },
-    ], true);
-    g.lineStyle(1, OUT, 0.5);
-    g.strokeRect(cwX, cwY, 5, 7);
+    // ── Lastikler (jantlı) ───────────────────────────────────────────
+    const wheelY    = vBR.y + 5;
+    const fWheelX   = fR ? vRR.x - 6  : vLR.x + 6;
+    const rWheelX   = fR ? vLR.x + 6  : vRR.x - 6;
+    [[fWheelX, wheelY], [rWheelX, wheelY]].forEach(([wx, wy]) => {
+      g.fillStyle(C_WHEEL);
+      g.fillEllipse(wx, wy, 14, 7);
+      g.fillStyle(C_RIM);
+      g.fillEllipse(wx, wy, 7, 4);
+      g.fillStyle(0x222222);
+      g.fillEllipse(wx, wy, 3, 2);
+      g.lineStyle(1, OUT, 0.5);
+      g.strokeEllipse(wx, wy, 14, 7);
+    });
 
-    // ── Lastikler ───────────────────────────────────────────────────
-    g.fillStyle(C_WHEEL);
-    // Ön lastik (fork tarafı)
-    g.fillEllipse(fR ? vRB.x - 5 : vLB.x + 5, vBB.y + 3, 10, 5);
-    // Arka lastik (mast tarafı)
-    g.fillEllipse(fR ? vLB.x + 3 : vRB.x - 3, vBB.y + 3, 10, 5);
+    // ── Forklar (iki paralel çubuk) ───────────────────────────────────
+    const fRootX = fR ? vR.x       : vL.x;
+    const fRootY = fR ? vRB.y - 2  : vLB.y - 2;
+    const fDX    = fR ? 18  : -18;
+    const fDY    = fD ? 9   : -9;
+    const gap    = 6;
 
-    // ── Forklar (iki paralel çubuk) ──────────────────────────────────
-    const fRootX = fR ? vR.x : vL.x;
-    const fRootY = fR ? vR.y + bSD * 0.45 : vL.y + bSD * 0.45;
-    const fDX    = (fR ? 14 : -14);
-    const fDY    = (fD ? 7 : -7);
-
-    // Üst çubuk (parlak)
+    // Birinci fork çubuğu (üstte)
     g.fillStyle(C_FORK);
     g.fillPoints([
-      { x: fRootX,       y: fRootY - 3 },
-      { x: fRootX + fDX, y: fRootY - 3 + fDY },
-      { x: fRootX + fDX, y: fRootY - 1 + fDY },
-      { x: fRootX,       y: fRootY - 1 },
+      { x: fRootX,        y: fRootY - gap - 2 },
+      { x: fRootX + fDX,  y: fRootY - gap - 2 + fDY },
+      { x: fRootX + fDX,  y: fRootY - gap + 1 + fDY },
+      { x: fRootX,        y: fRootY - gap + 1 },
     ], true);
-
-    // Alt çubuk (gölgeli)
     g.fillStyle(C_FORKD);
     g.fillPoints([
-      { x: fRootX,       y: fRootY + 2 },
-      { x: fRootX + fDX, y: fRootY + 2 + fDY },
-      { x: fRootX + fDX, y: fRootY + 4 + fDY },
-      { x: fRootX,       y: fRootY + 4 },
+      { x: fRootX,        y: fRootY - gap + 1 },
+      { x: fRootX + fDX,  y: fRootY - gap + 1 + fDY },
+      { x: fRootX + fDX,  y: fRootY - gap + 3 + fDY },
+      { x: fRootX,        y: fRootY - gap + 3 },
     ], true);
 
-    // Fork çizgileri
-    g.lineStyle(1, OUT, 0.45);
-    g.strokePoints([
-      { x: fRootX, y: fRootY - 3 },
-      { x: fRootX + fDX, y: fRootY - 3 + fDY },
-      { x: fRootX + fDX, y: fRootY - 1 + fDY },
-      { x: fRootX, y: fRootY - 1 },
+    // İkinci fork çubuğu (altta)
+    g.fillStyle(C_FORK);
+    g.fillPoints([
+      { x: fRootX,        y: fRootY + 1 },
+      { x: fRootX + fDX,  y: fRootY + 1 + fDY },
+      { x: fRootX + fDX,  y: fRootY + 4 + fDY },
+      { x: fRootX,        y: fRootY + 4 },
     ], true);
-    g.strokePoints([
-      { x: fRootX, y: fRootY + 2 },
-      { x: fRootX + fDX, y: fRootY + 2 + fDY },
-      { x: fRootX + fDX, y: fRootY + 4 + fDY },
-      { x: fRootX, y: fRootY + 4 },
+    g.fillStyle(C_FORKD);
+    g.fillPoints([
+      { x: fRootX,        y: fRootY + 4 },
+      { x: fRootX + fDX,  y: fRootY + 4 + fDY },
+      { x: fRootX + fDX,  y: fRootY + 6 + fDY },
+      { x: fRootX,        y: fRootY + 6 },
     ], true);
+
+    g.lineStyle(1, OUT, 0.4);
+    g.lineBetween(fRootX, fRootY - gap - 2, fRootX + fDX, fRootY - gap - 2 + fDY);
+    g.lineBetween(fRootX, fRootY + 1,       fRootX + fDX, fRootY + 1 + fDY);
   }
 }

@@ -43,8 +43,8 @@ export class GameOverScene extends Phaser.Scene {
 
   private _buildWinScreen(cx: number, cy: number, data: GameOverData): void {
     // Başlık
-    this.add.text(cx, cy - 120, '✓ LEVEL TAMAMLANDI!', {
-      fontSize: '30px', color: '#44ff88', fontStyle: 'bold',
+    this.add.text(cx, cy - 120, '✓ TAMAMLANDI!', {
+      fontFamily: "'Press Start 2P'", fontSize: '12px', color: '#44ff88',
       stroke: '#003300', strokeThickness: 3,
     }).setOrigin(0.5);
 
@@ -53,7 +53,7 @@ export class GameOverScene extends Phaser.Scene {
     // Yeni rekor
     if (data.isNewHighScore) {
       const rec = this.add.text(cx, cy - 42, '🏆 YENİ REKOR!', {
-        fontSize: '18px', color: '#f5c542', fontStyle: 'bold',
+        fontFamily: "'Press Start 2P'", fontSize: '8px', color: '#f5c542',
       }).setOrigin(0.5);
       this.tweens.add({
         targets: rec,
@@ -70,11 +70,11 @@ export class GameOverScene extends Phaser.Scene {
     ]);
 
     // Butonlar
-    this._buildTopScores(cx, cy + 100);
+    this._buildTopScores(cx, cy + 96);
 
-    this._buildButton(cx, cy + 152, '[ SONRAKİ LEVEL  › ]', '#44ff88',
+    this._buildButton(cx, cy + 182, '[ SONRAKİ LEVEL › ]', '#44ff88',
       () => this._nextLevel(data.level + 1, data.score));
-    this._buildButton(cx, cy + 188, '[ Ana Menü ]', '#888888', () => this._menu());
+    this._buildButton(cx, cy + 218, '[ ANA MENÜ ]', '#888888', () => this._menu());
 
     this.input.keyboard!.once('keydown-SPACE', () => this._nextLevel(data.level + 1, data.score));
     this.input.keyboard!.once('keydown-ESCAPE', () => this._menu());
@@ -84,7 +84,7 @@ export class GameOverScene extends Phaser.Scene {
 
   private _buildLoseScreen(cx: number, cy: number, data: GameOverData): void {
     this.add.text(cx, cy - 120, '✗ SÜRE DOLDU!', {
-      fontSize: '30px', color: '#ff4444', fontStyle: 'bold',
+      fontFamily: "'Press Start 2P'", fontSize: '12px', color: '#ff4444',
       stroke: '#330000', strokeThickness: 3,
     }).setOrigin(0.5);
 
@@ -92,7 +92,7 @@ export class GameOverScene extends Phaser.Scene {
 
     if (data.isNewHighScore) {
       const rec = this.add.text(cx, cy - 42, '🏆 YENİ REKOR!', {
-        fontSize: '18px', color: '#f5c542', fontStyle: 'bold',
+        fontFamily: "'Press Start 2P'", fontSize: '8px', color: '#f5c542',
       }).setOrigin(0.5);
       this.tweens.add({
         targets: rec,
@@ -106,10 +106,10 @@ export class GameOverScene extends Phaser.Scene {
       { label: 'Skor',          value: String(data.score), highlight: true },
     ]);
 
-    this._buildTopScores(cx, cy + 100);
+    this._buildTopScores(cx, cy + 96);
 
-    this._buildButton(cx, cy + 152, '[ TEKRAR DENE ]', '#ff8844', () => this._restart());
-    this._buildButton(cx, cy + 188, '[ Ana Menü ]',    '#888888', () => this._menu());
+    this._buildButton(cx, cy + 182, '[ TEKRAR DENE ]', '#ff8844', () => this._restart());
+    this._buildButton(cx, cy + 218, '[ ANA MENÜ ]',    '#888888', () => this._menu());
 
     this.input.keyboard!.once('keydown-SPACE', () => this._restart());
     this.input.keyboard!.once('keydown-ESCAPE', () => this._menu());
@@ -119,8 +119,8 @@ export class GameOverScene extends Phaser.Scene {
 
   private _showLevelBadge(cx: number, y: number, level: number): void {
     this.add.rectangle(cx, y, 130, 28, 0x333355, 0.9).setOrigin(0.5);
-    this.add.text(cx, y, `LEVEL  ${level}`, {
-      fontSize: '15px', color: '#aaaacc',
+    this.add.text(cx, y, `LEVEL ${level}`, {
+      fontFamily: "'Press Start 2P'", fontSize: '7px', color: '#aaaacc',
     }).setOrigin(0.5);
   }
 
@@ -134,12 +134,11 @@ export class GameOverScene extends Phaser.Scene {
     rows.forEach((row, i) => {
       const y = cy - boxH / 2 + 18 + i * 26;
       this.add.text(cx - 130, y, row.label, {
-        fontSize: '13px', color: '#999999',
+        fontFamily: "'Press Start 2P'", fontSize: '6px', color: '#999999',
       }).setOrigin(0, 0.5);
       this.add.text(cx + 130, y, row.value, {
-        fontSize: '13px',
+        fontFamily: "'Press Start 2P'", fontSize: '6px',
         color: row.highlight ? '#f5c542' : '#ffffff',
-        fontStyle: row.highlight ? 'bold' : 'normal',
       }).setOrigin(1, 0.5);
     });
   }
@@ -148,25 +147,27 @@ export class GameOverScene extends Phaser.Scene {
     const top = new ScoreSystem().getTopScores();
     if (top.length === 0) return;
 
-    this.add.rectangle(cx, y + 18, 280, 14 + top.length * 20, 0x111122, 0.75).setOrigin(0.5);
+    this.add.rectangle(cx, y + 18, 280, 16 + top.length * 22, 0x111122, 0.75).setOrigin(0.5);
     this.add.text(cx, y + 4, 'EN YÜKSEK SKORLAR', {
-      fontSize: '9px', color: '#555577',
+      fontFamily: "'Press Start 2P'", fontSize: '6px', color: '#555577',
     }).setOrigin(0.5);
 
     top.forEach((s, i) => {
       const ry = y + 18 + i * 20;
       this.add.text(cx - 120, ry, `${MEDALS[i] ?? '  '} #${i + 1}`, {
-        fontSize: '12px', color: i === 0 ? '#f5c542' : '#777777',
+        fontFamily: "'Press Start 2P'", fontSize: '6px',
+        color: i === 0 ? '#f5c542' : '#777777',
       }).setOrigin(0, 0.5);
       this.add.text(cx + 120, ry, s.toLocaleString(), {
-        fontSize: '12px', color: i === 0 ? '#f5c542' : '#999999',
+        fontFamily: "'Press Start 2P'", fontSize: '6px',
+        color: i === 0 ? '#f5c542' : '#999999',
       }).setOrigin(1, 0.5);
     });
   }
 
   private _buildButton(cx: number, y: number, label: string, color: string, cb: () => void): void {
     const btn = this.add.text(cx, y, label, {
-      fontSize: '18px', color,
+      fontFamily: "'Press Start 2P'", fontSize: '8px', color,
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     btn.on('pointerover',  () => { btn.setAlpha(0.7); this.sound_.menuSelect(); });

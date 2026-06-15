@@ -159,10 +159,10 @@ export class GameScene extends Phaser.Scene {
       .setDepth(0.05).setVisible(false);
 
     this.actionHint = this.add.text(0, 0, '', {
-      fontSize: '10px', color: '#ffffff',
+      fontFamily: "'Press Start 2P'", fontSize: '10px', color: '#ffffff',
       backgroundColor: '#000000cc',
       padding: { x: 5, y: 3 },
-    }).setOrigin(0.5, 1).setDepth(100).setVisible(false);
+    }).setOrigin(0.5, 1).setDepth(300).setVisible(false);
   }
 
   // ─── Level intro ──────────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0).setDepth(500);
 
     const titleTxt = this.add.text(cx, cy - 68, `LEVEL  ${config.level}`, {
-      fontSize: '34px', color: '#f5c542', fontStyle: 'bold',
+      fontFamily: "'Press Start 2P'", fontSize: '16px', color: '#f5c542',
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
 
@@ -191,13 +191,13 @@ export class GameScene extends Phaser.Scene {
 
     lines.forEach((line, i) => {
       this.add.text(cx, cy - 22 + i * 22, line, {
-        fontSize: '14px', color: '#ffffff',
+        fontFamily: "'Press Start 2P'", fontSize: '6px', color: '#ffffff',
       }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
     });
 
     // Geri sayım metni
     const countTxt = this.add.text(cx, cy + 66, '', {
-      fontSize: '42px', color: '#ffffff', fontStyle: 'bold',
+      fontFamily: "'Press Start 2P'", fontSize: '18px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
 
@@ -217,7 +217,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(800, tick);
       } else {
         // BAŞLA!
-        countTxt.setText('BAŞLA!').setStyle({ color: '#44ff88' });
+        countTxt.setText('BAŞLA!').setStyle({ color: '#44ff88', fontFamily: "'Press Start 2P'" });
         this.tweens.add({
           targets: countTxt,
           scaleX: { from: 1.6, to: 1 }, scaleY: { from: 1.6, to: 1 },
@@ -545,7 +545,7 @@ export class GameScene extends Phaser.Scene {
 
   private _floatText(x: number, y: number, msg: string, color: string): void {
     const t = this.add.text(x, y, msg, {
-      fontSize: '14px', color, fontStyle: 'bold',
+      fontFamily: "'Press Start 2P'", fontSize: '14px', color, fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5, 1).setDepth(200);
 

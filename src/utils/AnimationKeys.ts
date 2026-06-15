@@ -18,7 +18,7 @@ export const ForkliftAnims = {
 
 /** Sprite sheet frame düzeni sabitleri. */
 export const PLAYER_FRAME = { width: 32, height: 48, cols: 9 };
-export const FORKLIFT_FRAME = { width: 48, height: 32, cols: 5 };
+export const FORKLIFT_FRAME = { width: 72, height: 56, cols: 5 };
 
 /** Oyuncu sheet'inde yön satırı × sütun ofseti. */
 export function playerFrameIndex(isoDir: IsoDirection, col: number): number {

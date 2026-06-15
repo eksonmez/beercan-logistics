@@ -77,13 +77,12 @@ export class MenuScene extends Phaser.Scene {
   private _buildTitle(): void {
     const cx = GAME_WIDTH / 2;
 
-    // Glow efekti (arka plan blur taklidı — blurred shadow)
-    this.add.text(cx + 2, 98, 'BEERCAN', {
-      fontSize: '56px', color: '#7a6200', fontStyle: 'bold',
+    this.add.text(cx + 2, 88, 'BEERCAN', {
+      fontFamily: "'Press Start 2P'", fontSize: '26px', color: '#7a6200',
     }).setOrigin(0.5).setAlpha(0.5);
 
-    const title = this.add.text(cx, 96, 'BEERCAN', {
-      fontSize: '56px', color: '#f5c542', fontStyle: 'bold',
+    const title = this.add.text(cx, 86, 'BEERCAN', {
+      fontFamily: "'Press Start 2P'", fontSize: '26px', color: '#f5c542',
     }).setOrigin(0.5);
 
     this.tweens.add({
@@ -93,14 +92,13 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    this.add.text(cx, 154, 'L O G I S T I C S', {
-      fontSize: '22px', color: '#aaaacc',
+    this.add.text(cx, 128, 'L O G I S T I C S', {
+      fontFamily: "'Press Start 2P'", fontSize: '11px', color: '#aaaacc',
     }).setOrigin(0.5);
 
-    // Çizgi
     const line = this.add.graphics();
     line.lineStyle(1, 0x444466, 0.8);
-    line.lineBetween(cx - 140, 176, cx + 140, 176);
+    line.lineBetween(cx - 160, 154, cx + 160, 154);
   }
 
   // ─── Skor tablosu ─────────────────────────────────────────────────────────
@@ -111,31 +109,34 @@ export class MenuScene extends Phaser.Scene {
     const top = ss.getTopScores();
 
     if (top.length === 0) {
-      this.add.text(cx, 218, 'Henüz skor yok — ilk sen ol!', {
-        fontSize: '13px', color: '#555577',
+      this.add.text(cx, 196, 'Henüz skor yok!', {
+        fontFamily: "'Press Start 2P'", fontSize: '9px', color: '#555577',
       }).setOrigin(0.5);
       return;
     }
 
-    this.add.text(cx, 202, '— EN YÜKSEK SKORLAR —', {
-      fontSize: '11px', color: '#555577',
+    this.add.text(cx, 180, 'EN YÜKSEK SKORLAR', {
+      fontFamily: "'Press Start 2P'", fontSize: '8px', color: '#666688',
     }).setOrigin(0.5);
 
-    // Panel
-    this.add.rectangle(cx, 232 + (top.length - 1) * 13, 260, 20 + top.length * 26, 0x111122, 0.7)
-      .setOrigin(0.5);
+    const rowH   = 32;
+    const panelH = top.length * rowH + 24;
+    const panelY = 218 + (top.length - 1) * rowH / 2;
+
+    this.add.rectangle(cx, panelY, 300, panelH, 0x111122, 0.8).setOrigin(0.5);
 
     top.forEach((score, i) => {
-      const y = 224 + i * 26;
+      const y = 210 + i * rowH;
       const isFirst = i === 0;
-      this.add.text(cx - 110, y, `${MEDALS[i] ?? '  '} #${i + 1}`, {
-        fontSize: isFirst ? '15px' : '13px',
+      this.add.text(cx - 130, y, `${MEDALS[i] ?? '  '} #${i + 1}`, {
+        fontFamily: "'Press Start 2P'",
+        fontSize: isFirst ? '9px' : '8px',
         color: isFirst ? '#f5c542' : '#888888',
       }).setOrigin(0, 0.5);
-      this.add.text(cx + 110, y, score.toLocaleString(), {
-        fontSize: isFirst ? '15px' : '13px',
+      this.add.text(cx + 130, y, score.toLocaleString(), {
+        fontFamily: "'Press Start 2P'",
+        fontSize: isFirst ? '9px' : '8px',
         color: isFirst ? '#f5c542' : '#aaaaaa',
-        fontStyle: isFirst ? 'bold' : 'normal',
       }).setOrigin(1, 0.5);
     });
   }
@@ -146,13 +147,13 @@ export class MenuScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     const ss = new ScoreSystem();
     const hasScore = ss.getTopScores().length > 0;
-    const btnY = hasScore ? 356 : 310;
+    const btnY = hasScore ? 400 : 310;
 
-    const btnBg = this.add.rectangle(cx, btnY, 220, 44, 0x224422, 0.9)
-      .setStrokeStyle(1, 0x44ff88, 0.6);
+    const btnBg = this.add.rectangle(cx, btnY, 260, 52, 0x224422, 0.9)
+      .setStrokeStyle(1, 0x44ff88, 0.7);
 
-    const btn = this.add.text(cx, btnY, '▶  OYUNA BAŞLA', {
-      fontSize: '20px', color: '#44ff88', fontStyle: 'bold',
+    const btn = this.add.text(cx, btnY, '▶  BAŞLA', {
+      fontFamily: "'Press Start 2P'", fontSize: '13px', color: '#44ff88',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     btn.on('pointerover', () => {
@@ -166,14 +167,13 @@ export class MenuScene extends Phaser.Scene {
     });
     btn.on('pointerdown', () => this._startGame());
 
-    // Yanıp sönen yardım metni
-    const hint = this.add.text(cx, btnY + 34, 'SPACE veya ENTER', {
-      fontSize: '11px', color: '#335533',
+    const hint = this.add.text(cx, btnY + 38, 'SPACE  veya  ENTER', {
+      fontFamily: "'Press Start 2P'", fontSize: '7px', color: '#335533',
     }).setOrigin(0.5);
 
     this.tweens.add({
-      targets: hint, alpha: 0.2,
-      duration: 700, yoyo: true, repeat: -1,
+      targets: hint, alpha: 0.15,
+      duration: 800, yoyo: true, repeat: -1,
     });
 
     this.input.keyboard!.once('keydown-SPACE', () => this._startGame());
@@ -181,9 +181,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private _buildFooter(): void {
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 10,
-      'Phaser 3 · TypeScript · v0.6-beta', {
-      fontSize: '9px', color: '#222244',
+    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 12,
+      'v0.6-beta', {
+      fontFamily: "'Press Start 2P'", fontSize: '6px', color: '#2a2a44',
     }).setOrigin(0.5, 1);
   }
 
