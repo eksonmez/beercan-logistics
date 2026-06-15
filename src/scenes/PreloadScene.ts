@@ -99,9 +99,24 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   private _createProceduralTextures(): void {
-    this._makeTile(AssetKeys.TILES.FLOOR,      0xd4c89a, 0xb09060, 0x8c7040);
+    // Orijinal floor (geriye dönük uyum)
+    this._makeTile(AssetKeys.TILES.FLOOR,      0xd4c89a, 0xb09060, 0x8c7040, 0xe8c84a);
     this._makeTile(AssetKeys.TILES.WALL,       0x8b5e2a, 0x6b4018, 0x4d2c0a);
     this._makeTile(AssetKeys.TILES.SHELF_BASE, 0x7a5c3a, 0x5c4020, 0x3d2a12);
+
+    // 5 zemin paleti (level eşiklerine göre)
+    this._makeTile(AssetKeys.TILES.FLOOR_P0, 0xd4a843, 0xb08830, 0x8c6a20, 0xe8c84a); // sarı-sıcak
+    this._makeTile(AssetKeys.TILES.FLOOR_P1, 0xc07830, 0x9a5820, 0x7a3a10, 0xe8a030); // turuncu
+    this._makeTile(AssetKeys.TILES.FLOOR_P2, 0x4a6fa5, 0x3a5585, 0x2a3f6a, 0x7a9fd4); // mavi-gri
+    this._makeTile(AssetKeys.TILES.FLOOR_P3, 0x5a3a7a, 0x422a5a, 0x2e1a40, 0x8a60cc); // mor-karanlık
+    this._makeTile(AssetKeys.TILES.FLOOR_P4, 0x8b2020, 0x6b1818, 0x4d0e0e, 0xcc4444); // kırmızı-alarm
+
+    // Konveyör bant tile'ları
+    this._makeConveyorTile(AssetKeys.TILES.CONVEYOR_H, true);
+    this._makeConveyorTile(AssetKeys.TILES.CONVEYOR_V, false);
+
+    // Kaygan zemin tile
+    this._makeSlipperyTile(AssetKeys.TILES.SLIPPERY);
 
     const types = ['lager', 'ale', 'stout', 'pilsner'] as const;
     const texKeys = [AssetKeys.BOXES.LAGER, AssetKeys.BOXES.ALE, AssetKeys.BOXES.STOUT, AssetKeys.BOXES.PILSNER];
@@ -111,7 +126,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /** İzometrik diamond zemin tile — üst yüz + iki yan yüz. */
-  private _makeTile(key: string, top: number, left: number, right: number): void {
+  private _makeTile(key: string, top: number, left: number, right: number, stripeColor?: number): void {
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     const w = TILE_WIDTH;
     const h = TILE_HEIGHT;
@@ -141,12 +156,10 @@ export class PreloadScene extends Phaser.Scene {
       { x: w / 2, y: h + d },
     ], true);
 
-    // Zemin tile ise üstüne depo yer işareti şeritleri çiz
-    if (key === AssetKeys.TILES.FLOOR) {
-      g.lineStyle(2, 0xe8c84a, 0.55);
-      // Sol diyagonal şerit (diamond boyunca)
+    // Şerit rengi verilmişse depo yer işareti çiz
+    if (stripeColor !== undefined) {
+      g.lineStyle(2, stripeColor, 0.55);
       g.lineBetween(w * 0.18, h * 0.59, w * 0.5, h * 0.28);
-      // Sağ diyagonal şerit
       g.lineBetween(w * 0.5, h * 0.72, w * 0.82, h * 0.41);
     }
 
@@ -160,6 +173,88 @@ export class PreloadScene extends Phaser.Scene {
     g.strokePoints([
       { x: w, y: h / 2 }, { x: w, y: h / 2 + d }, { x: w / 2, y: h + d },
     ], false);
+
+    g.generateTexture(key, w, h + d);
+    g.destroy();
+  }
+
+  /** Konveyör bant tile — sarı ok işaretli zemin. */
+  private _makeConveyorTile(key: string, horizontal: boolean): void {
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    const w = TILE_WIDTH;
+    const h = TILE_HEIGHT;
+    const d = 10;
+
+    // Koyu sarı-turuncu üst yüz
+    g.fillStyle(0xb8900a);
+    g.fillPoints([
+      { x: w / 2, y: 0 }, { x: w, y: h / 2 }, { x: w / 2, y: h }, { x: 0, y: h / 2 },
+    ], true);
+    g.fillStyle(0x8a6808);
+    g.fillPoints([
+      { x: 0, y: h / 2 }, { x: w / 2, y: h }, { x: w / 2, y: h + d }, { x: 0, y: h / 2 + d },
+    ], true);
+    g.fillStyle(0x6a5005);
+    g.fillPoints([
+      { x: w / 2, y: h }, { x: w, y: h / 2 }, { x: w, y: h / 2 + d }, { x: w / 2, y: h + d },
+    ], true);
+
+    // Ok işaretleri
+    g.lineStyle(2, 0xffdd00, 0.9);
+    if (horizontal) {
+      // Sağa ok (ne yönü)
+      const midY = h / 2;
+      g.lineBetween(w * 0.28, midY + 2, w * 0.55, midY - 5);
+      g.lineBetween(w * 0.55, midY - 5, w * 0.45, midY - 1);
+      g.lineBetween(w * 0.55, midY - 5, w * 0.5, midY);
+    } else {
+      // Güneye ok (se yönü)
+      const midX = w / 2;
+      g.lineBetween(midX - 8, h * 0.35, midX, h * 0.65);
+      g.lineBetween(midX, h * 0.65, midX - 4, h * 0.55);
+      g.lineBetween(midX, h * 0.65, midX + 4, h * 0.52);
+    }
+
+    g.lineStyle(1, 0x000000, 0.4);
+    g.strokePoints([
+      { x: w / 2, y: 0 }, { x: w, y: h / 2 }, { x: w / 2, y: h }, { x: 0, y: h / 2 },
+    ], true);
+
+    g.generateTexture(key, w, h + d);
+    g.destroy();
+  }
+
+  /** Kaygan zemin tile — açık mavi buzlu görünüm. */
+  private _makeSlipperyTile(key: string): void {
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    const w = TILE_WIDTH;
+    const h = TILE_HEIGHT;
+    const d = 10;
+
+    g.fillStyle(0x8ad4f0);
+    g.fillPoints([
+      { x: w / 2, y: 0 }, { x: w, y: h / 2 }, { x: w / 2, y: h }, { x: 0, y: h / 2 },
+    ], true);
+    g.fillStyle(0x5aa8cc);
+    g.fillPoints([
+      { x: 0, y: h / 2 }, { x: w / 2, y: h }, { x: w / 2, y: h + d }, { x: 0, y: h / 2 + d },
+    ], true);
+    g.fillStyle(0x3a80a8);
+    g.fillPoints([
+      { x: w / 2, y: h }, { x: w, y: h / 2 }, { x: w, y: h / 2 + d }, { x: w / 2, y: h + d },
+    ], true);
+
+    // Buz parıltısı çizgileri
+    g.lineStyle(1, 0xeef8ff, 0.65);
+    g.lineBetween(w * 0.3, h * 0.38, w * 0.5, h * 0.28);
+    g.lineBetween(w * 0.5, h * 0.52, w * 0.7, h * 0.42);
+    g.lineStyle(1, 0xffffff, 0.45);
+    g.lineBetween(w * 0.22, h * 0.55, w * 0.38, h * 0.46);
+
+    g.lineStyle(1, 0x5599bb, 0.5);
+    g.strokePoints([
+      { x: w / 2, y: 0 }, { x: w, y: h / 2 }, { x: w / 2, y: h }, { x: 0, y: h / 2 },
+    ], true);
 
     g.generateTexture(key, w, h + d);
     g.destroy();

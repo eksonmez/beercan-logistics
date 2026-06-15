@@ -1,6 +1,24 @@
 /** Bira kutusu türleri */
 export type BeerType = 'lager' | 'ale' | 'stout' | 'pilsner';
 
+/** Zemin tile türleri */
+export type TileType = 'floor' | 'conveyor_n' | 'conveyor_s' | 'conveyor_e' | 'conveyor_w' | 'slippery';
+
+/** Özel tile verisi */
+export interface TileData {
+  tileX: number;
+  tileY: number;
+  type: TileType;
+}
+
+/** NPC engel verisi */
+export interface ObstacleData {
+  id: string;
+  startX: number;
+  startY: number;
+  patrolPath: Array<{ tileX: number; tileY: number }>;
+}
+
 /** İzometrik grid pozisyonu */
 export interface IsoPosition {
   tileX: number;
@@ -13,6 +31,16 @@ export interface LevelConfig {
   boxCount: number;
   beerTypes: BeerType[];
   timeLimit: number;
+  mapWidth: number;
+  mapHeight: number;
+  obstacleCount: number;
+  fragileBoxRatio: number;
+  fragileBoxTTL: number;
+  hasConveyor: boolean;
+  hasSlippery: boolean;
+  floorPaletteIndex: number;
+  specialTiles: TileData[];
+  obstacles: ObstacleData[];
 }
 
 /** Oyun durumu (registry'de tutulur) */

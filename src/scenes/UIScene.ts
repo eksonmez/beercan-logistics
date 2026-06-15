@@ -22,6 +22,7 @@ export class UIScene extends Phaser.Scene {
   private carryBg!: Phaser.GameObjects.Rectangle;
 
   private modeText!: Phaser.GameObjects.Text;
+  private mechanicsText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'UIScene' });
@@ -43,8 +44,12 @@ export class UIScene extends Phaser.Scene {
     this.add.rectangle(cx, cy, GAME_WIDTH, TOP_H, 0x0d0d1a, 0.90).setScrollFactor(0);
     this.add.rectangle(cx, TOP_H, GAME_WIDTH, 1, GOLD, 0.55).setScrollFactor(0);
 
-    this.levelText = this.add.text(10, cy, 'LVL 1', {
+    this.levelText = this.add.text(10, cy - 5, 'LVL 1', {
       fontFamily: FONT, fontSize: '8px', color: '#c8b87a',
+    }).setOrigin(0, 0.5).setScrollFactor(0);
+
+    this.mechanicsText = this.add.text(10, cy + 8, '', {
+      fontFamily: FONT, fontSize: '5px', color: '#ff8844',
     }).setOrigin(0, 0.5).setScrollFactor(0);
 
     this.timerText = this.add.text(cx, cy, '2:00', {
@@ -136,6 +141,10 @@ export class UIScene extends Phaser.Scene {
 
     game.events.on('modeUpdate', (mode: 'foot' | 'forklift') => {
       this._updateMode(mode);
+    });
+
+    game.events.on('activeMechanicsUpdate', (mechanics: string[]) => {
+      this.mechanicsText.setText(mechanics.join(' '));
     });
   }
 

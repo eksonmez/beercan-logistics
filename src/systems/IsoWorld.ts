@@ -1,6 +1,6 @@
 import { isoToScreen, calcDepth } from '../utils/IsoUtils';
 import { MAP_WIDTH, MAP_HEIGHT } from '../utils/Constants';
-import type { IsoPosition } from '../types';
+import type { IsoPosition, TileType, TileData } from '../types';
 
 /** İzometrik dünya: grid yönetimi ve koordinat dönüşümleri. */
 export class IsoWorld {
@@ -12,12 +12,26 @@ export class IsoWorld {
   readonly originY: number;
 
   private blockedTiles: Set<string> = new Set();
+  private specialTileMap: Map<string, TileType> = new Map();
 
-  constructor(screenWidth: number, screenHeight: number) {
-    this.mapWidth = MAP_WIDTH;
-    this.mapHeight = MAP_HEIGHT;
+  constructor(screenWidth: number, screenHeight: number, mapWidth?: number, mapHeight?: number) {
+    this.mapWidth  = mapWidth  ?? MAP_WIDTH;
+    this.mapHeight = mapHeight ?? MAP_HEIGHT;
     this.originX = screenWidth / 2;
     this.originY = screenHeight / 4;
+  }
+
+  /** Özel tile verilerini yükler (konveyör, kaygan vb.). */
+  loadSpecialTiles(tiles: TileData[]): void {
+    this.specialTileMap.clear();
+    for (const t of tiles) {
+      this.specialTileMap.set(`${t.tileX},${t.tileY}`, t.type);
+    }
+  }
+
+  /** Tile'ın tipini döner. */
+  getTileType(tileX: number, tileY: number): TileType {
+    return this.specialTileMap.get(`${Math.round(tileX)},${Math.round(tileY)}`) ?? 'floor';
   }
 
   /** Tile koordinatını nihai ekran koordinatına çevirir (origin offset dahil). */

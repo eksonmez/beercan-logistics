@@ -4,6 +4,8 @@ import { InputHandler } from '../systems/InputHandler';
 import { TimerSystem } from '../systems/TimerSystem';
 import { LevelGenerator } from '../systems/LevelGenerator';
 import { ScoreSystem } from '../systems/ScoreSystem';
+import { ObstacleSystem } from '../systems/ObstacleSystem';
+import { ConveyorSystem } from '../systems/ConveyorSystem';
 import { IsoTile } from '../objects/IsoTile';
 import { Player } from '../objects/Player';
 import { Forklift } from '../objects/Forklift';
@@ -11,9 +13,22 @@ import { BeerBox } from '../objects/BeerBox';
 import { Shelf } from '../objects/Shelf';
 import { SoundSystem } from '../systems/SoundSystem';
 import { AssetKeys } from '../utils/AssetKeys';
-import { GAME_WIDTH, GAME_HEIGHT, MAP_WIDTH, MAP_HEIGHT, PENALTY_TIME, BEER_COLORS } from '../utils/Constants';
+import {
+  GAME_WIDTH, GAME_HEIGHT,
+  PENALTY_TIME, BEER_COLORS,
+  OBSTACLE_SLOW_DURATION, SLIPPERY_FRICTION,
+} from '../utils/Constants';
+import { getNewMechanicsForLevel } from '../utils/LevelUtils';
 import { PLAYER_FRAME, FORKLIFT_FRAME } from '../utils/AnimationKeys';
-import type { BeerType, LevelConfig } from '../types';
+import type { BeerType, LevelConfig, TileType } from '../types';
+
+const FLOOR_KEYS = [
+  AssetKeys.TILES.FLOOR_P0,
+  AssetKeys.TILES.FLOOR_P1,
+  AssetKeys.TILES.FLOOR_P2,
+  AssetKeys.TILES.FLOOR_P3,
+  AssetKeys.TILES.FLOOR_P4,
+] as const;
 
 export class GameScene extends Phaser.Scene {
   private world!: IsoWorld;
@@ -37,11 +52,19 @@ export class GameScene extends Phaser.Scene {
   private levelConfig!: LevelConfig;
   private timerWarningPlayed: boolean = false;
 
-  /** Intro countdown devam ederken input kilitli. */
   private introActive: boolean = true;
+  private levelCompleting: boolean = false;
 
   private highlight!: Phaser.GameObjects.Ellipse;
   private actionHint!: Phaser.GameObjects.Text;
+
+  // Yeni sistemler
+  private obstacles: ObstacleSystem | null = null;
+  private conveyor: ConveyorSystem | null = null;
+
+  private isSlowed: boolean = false;
+  private slipVX: number = 0;
+  private slipVY: number = 0;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -56,39 +79,49 @@ export class GameScene extends Phaser.Scene {
     this.forkliftBoxes = [];
     this.deliveredBoxes = 0;
     this.introActive = true;
+    this.levelCompleting = false;
+    this.isSlowed = false;
+    this.slipVX = 0;
+    this.slipVY = 0;
+    this.obstacles = null;
+    this.conveyor = null;
 
     this.sound_ = new SoundSystem();
     this.timerWarningPlayed = false;
-
-    this.world = new IsoWorld(GAME_WIDTH, GAME_HEIGHT);
-    this.input_ = new InputHandler(this);
-    this.timer = new TimerSystem(this);
-    this.score = new ScoreSystem();
-    this.score.addPoints(this.registry.get('score') ?? 0);
-
-    // UIScene'i buradan başlat — her level geçişinde UIScene yeniden başlar
-    if (!this.scene.isActive('UIScene')) {
-      this.scene.launch('UIScene');
-    }
-
-    this._buildMap();
 
     const bonusTime: number = this.registry.get('bonusTime') ?? 0;
     this.levelConfig = LevelGenerator.buildConfig(this.level, bonusTime);
     this.totalBoxes = this.levelConfig.boxCount;
 
+    this.world = new IsoWorld(GAME_WIDTH, GAME_HEIGHT, this.levelConfig.mapWidth, this.levelConfig.mapHeight);
+    this.world.loadSpecialTiles(this.levelConfig.specialTiles);
+
+    this.input_ = new InputHandler(this);
+    this.timer = new TimerSystem(this);
+    this.score = new ScoreSystem();
+    this.score.addPoints(this.registry.get('score') ?? 0);
+
+    if (!this.scene.isActive('UIScene')) {
+      this.scene.launch('UIScene');
+    }
+
+    this._buildMap();
     this._spawnShelves(this.levelConfig);
     this._spawnBoxes(this.levelConfig);
     this._spawnActors();
+    this._setupSystems();
     this._setupCamera();
     this._setupHighlight();
+
+    // Kırılgan kutu expired eventi
+    this.events.on('boxExpired', this._onBoxExpired, this);
 
     this.events.emit('levelUpdate', this.level);
     this.events.emit('scoreUpdate', this.score.getScore());
     this.events.emit('boxesUpdate', this.totalBoxes, this.totalBoxes);
     this.events.emit('modeUpdate', 'foot');
+    this.events.emit('activeMechanicsUpdate', this._getActiveMechanics());
 
-    // Kamera fade-in, ardından intro
     this.cameras.main.fadeIn(400, 0, 0, 0);
     this.time.delayedCall(300, () => this._showLevelIntro(this.levelConfig, bonusTime));
   }
@@ -103,15 +136,51 @@ export class GameScene extends Phaser.Scene {
     }
 
     this._updateHighlight();
+    this.obstacles?.update(delta);
+
+    if (this.levelConfig.hasConveyor && !this.drivingForklift) {
+      this.conveyor?.applyToPlayer(this.player, delta, this.world);
+      this.conveyor?.applyToBoxes(this.boxes, delta, this.world);
+    }
+
+    if (this.levelConfig.hasSlippery && !this.drivingForklift) {
+      this._applySlipToPlayer(delta);
+    }
+
+    if (this.levelConfig.obstacleCount > 0 && !this.drivingForklift && !this.isSlowed) {
+      if (this.obstacles?.checkCollision(this.player.tileX, this.player.tileY)) {
+        this._triggerObstacleSlowdown();
+      }
+    }
   }
 
   // ─── Kurulum ──────────────────────────────────────────────────────────────
 
   private _buildMap(): void {
-    for (let x = 0; x < MAP_WIDTH; x++) {
-      for (let y = 0; y < MAP_HEIGHT; y++) {
-        new IsoTile(this, this.world, x, y, AssetKeys.TILES.FLOOR);
+    const floorKey = FLOOR_KEYS[this.levelConfig.floorPaletteIndex] ?? AssetKeys.TILES.FLOOR_P0;
+    const specialMap = new Map(this.levelConfig.specialTiles.map(t => [`${t.tileX},${t.tileY}`, t.type]));
+
+    for (let x = 0; x < this.levelConfig.mapWidth; x++) {
+      for (let y = 0; y < this.levelConfig.mapHeight; y++) {
+        const specialType = specialMap.get(`${x},${y}`) as TileType | undefined;
+        if (specialType) {
+          const texKey = this._tileTypeToKey(specialType);
+          new IsoTile(this, this.world, x, y, texKey);
+        } else {
+          new IsoTile(this, this.world, x, y, floorKey);
+        }
       }
+    }
+  }
+
+  private _tileTypeToKey(type: TileType): string {
+    switch (type) {
+      case 'conveyor_e':
+      case 'conveyor_w': return AssetKeys.TILES.CONVEYOR_H;
+      case 'conveyor_n':
+      case 'conveyor_s': return AssetKeys.TILES.CONVEYOR_V;
+      case 'slippery':   return AssetKeys.TILES.SLIPPERY;
+      default:           return FLOOR_KEYS[this.levelConfig.floorPaletteIndex] ?? AssetKeys.TILES.FLOOR_P0;
     }
   }
 
@@ -129,19 +198,40 @@ export class GameScene extends Phaser.Scene {
       stout:   AssetKeys.BOXES.STOUT,
       pilsner: AssetKeys.BOXES.PILSNER,
     };
-    for (const pos of LevelGenerator.generateBoxPositions(config)) {
-      this.boxes.push(new BeerBox(this, this.world, pos.tileX, pos.tileY, pos.type, texMap[pos.type]));
-    }
+    const positions = LevelGenerator.generateBoxPositions(config);
+
+    positions.forEach((pos) => {
+      const box = new BeerBox(this, this.world, pos.tileX, pos.tileY, pos.type, texMap[pos.type]);
+      // Kırılgan kutu belirleme (rastgele seçim, ratio'ya göre)
+      if (config.fragileBoxRatio > 0 && Math.random() < config.fragileBoxRatio) {
+        const ttl = config.fragileBoxTTL + Math.floor(Math.random() * 5);
+        box.enableFragile(ttl);
+      }
+      this.boxes.push(box);
+    });
   }
 
   private _spawnActors(): void {
     this.player = new Player(this, this.world, 1, 1);
-    this.forklift = new Forklift(this, this.world, Math.floor(MAP_WIDTH / 2), Math.floor(MAP_HEIGHT / 2));
+    this.forklift = new Forklift(
+      this, this.world,
+      Math.floor(this.levelConfig.mapWidth / 2),
+      Math.floor(this.levelConfig.mapHeight / 2),
+    );
+  }
+
+  private _setupSystems(): void {
+    if (this.levelConfig.obstacleCount > 0) {
+      this.obstacles = new ObstacleSystem(this, this.world, this.levelConfig.obstacles);
+    }
+    if (this.levelConfig.hasConveyor) {
+      this.conveyor = new ConveyorSystem();
+    }
   }
 
   private _setupCamera(): void {
     const topLeft  = this.world.tileToScreen(0, 0);
-    const botRight = this.world.tileToScreen(MAP_WIDTH - 1, MAP_HEIGHT - 1);
+    const botRight = this.world.tileToScreen(this.levelConfig.mapWidth - 1, this.levelConfig.mapHeight - 1);
     const pad = 120;
 
     this.cameras.main.setBounds(
@@ -171,37 +261,35 @@ export class GameScene extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
 
-    // Overlay nesneleri — scrollFactor 0 = kameradan bağımsız
-    const bg = this.add.rectangle(cx, cy, 320, 200, 0x000000, 0.82)
+    const bg = this.add.rectangle(cx, cy, 320, 220, 0x000000, 0.82)
       .setScrollFactor(0).setDepth(500);
 
-    const titleTxt = this.add.text(cx, cy - 68, `LEVEL  ${config.level}`, {
+    const titleTxt = this.add.text(cx, cy - 78, `LEVEL  ${config.level}`, {
       fontFamily: "'Press Start 2P'", fontSize: '16px', color: '#f5c542',
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
 
-    this.add.rectangle(cx, cy - 42, 260, 1, 0x888888, 0.5)
+    this.add.rectangle(cx, cy - 52, 260, 1, 0x888888, 0.5)
       .setScrollFactor(0).setDepth(501);
 
     const lines = [
       `🍺  ${config.boxCount} kutu`,
       `⏱  ${config.timeLimit} saniye`,
+      `🗺  ${config.mapWidth}×${config.mapHeight} alan`,
     ];
-    if (bonusTime > 0) lines.push(`⭐  +${bonusTime}sn bonus eklendi!`);
+    if (bonusTime > 0) lines.push(`⭐  +${bonusTime}sn bonus!`);
 
     lines.forEach((line, i) => {
-      this.add.text(cx, cy - 22 + i * 22, line, {
+      this.add.text(cx, cy - 30 + i * 20, line, {
         fontFamily: "'Press Start 2P'", fontSize: '6px', color: '#ffffff',
       }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
     });
 
-    // Geri sayım metni
-    const countTxt = this.add.text(cx, cy + 66, '', {
+    const countTxt = this.add.text(cx, cy + 76, '', {
       fontFamily: "'Press Start 2P'", fontSize: '18px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(501);
 
-    // Intro nesneleri listesi (fade için)
     const introObjs = [bg, titleTxt, countTxt];
 
     let count = 3;
@@ -216,7 +304,6 @@ export class GameScene extends Phaser.Scene {
         count--;
         this.time.delayedCall(800, tick);
       } else {
-        // BAŞLA!
         countTxt.setText('BAŞLA!').setStyle({ color: '#44ff88', fontFamily: "'Press Start 2P'" });
         this.tweens.add({
           targets: countTxt,
@@ -224,7 +311,6 @@ export class GameScene extends Phaser.Scene {
           duration: 300, ease: 'Back.easeOut',
         });
 
-        // Timer başlat
         this.timer.start(
           config.timeLimit,
           (remaining) => {
@@ -239,7 +325,6 @@ export class GameScene extends Phaser.Scene {
         this.events.emit('timerUpdate', config.timeLimit);
         this.introActive = false;
 
-        // Overlay sil
         this.time.delayedCall(500, () => {
           this.tweens.add({
             targets: introObjs,
@@ -247,11 +332,47 @@ export class GameScene extends Phaser.Scene {
             onComplete: () => introObjs.forEach(o => o.destroy()),
           });
         });
+
+        // Yeni mekanik bannerleri
+        const newMechanics = getNewMechanicsForLevel(this.level);
+        if (newMechanics.length > 0) {
+          newMechanics.forEach((name, i) => {
+            this.time.delayedCall(800 + i * 2200, () => this._showMechanicBanner(name));
+          });
+        }
       }
     };
 
-    // Küçük gecikmeyle başlat
     this.time.delayedCall(600, tick);
+  }
+
+  // ─── Mechanic banner ──────────────────────────────────────────────────────
+
+  private _showMechanicBanner(mechanicName: string): void {
+    const cx = GAME_WIDTH / 2;
+    const bg = this.add.rectangle(-100, 50, 260, 28, 0xffaa00, 0.9)
+      .setScrollFactor(0).setDepth(502);
+    const txt = this.add.text(-100, 50, `YENİ: ${mechanicName}`, {
+      fontFamily: "'Press Start 2P'", fontSize: '7px', color: '#1a0a00',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(503);
+
+    this.tweens.add({
+      targets: [bg, txt],
+      x: cx,
+      duration: 400,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2000, () => {
+          this.tweens.add({
+            targets: [bg, txt],
+            x: GAME_WIDTH + 150,
+            duration: 350,
+            ease: 'Back.easeIn',
+            onComplete: () => { bg.destroy(); txt.destroy(); },
+          });
+        });
+      },
+    });
   }
 
   // ─── Güncelleme döngüleri ─────────────────────────────────────────────────
@@ -278,6 +399,65 @@ export class GameScene extends Phaser.Scene {
 
     if (this.input_.isSpaceJustDown()) this._forkliftPickDrop();
     if (this.input_.isEJustDown())    this._dismountForklift();
+  }
+
+  // ─── Kaygan zemin ─────────────────────────────────────────────────────────
+
+  private _applySlipToPlayer(delta: number): void {
+    const tileType = this.world.getTileType(this.player.tileX, this.player.tileY);
+    const dt = delta / 1000;
+    const margin = 0.5;
+
+    if (tileType === 'slippery') {
+      // Input vektörünü slipVelocity'ye aktar
+      const vec = this.input_.getMovementVector();
+      this.slipVX = vec.dx !== 0 ? vec.dx : this.slipVX;
+      this.slipVY = vec.dy !== 0 ? vec.dy : this.slipVY;
+    }
+
+    if (Math.abs(this.slipVX) > 0.01 || Math.abs(this.slipVY) > 0.01) {
+      const nextX = Phaser.Math.Clamp(
+        this.player.floatX + this.slipVX * 1.8 * dt,
+        margin, this.world.mapWidth - 1 - margin,
+      );
+      const nextY = Phaser.Math.Clamp(
+        this.player.floatY + this.slipVY * 1.8 * dt,
+        margin, this.world.mapHeight - 1 - margin,
+      );
+
+      if (!this.world.isTileBlocked(Math.round(nextX), Math.round(this.player.floatY))) {
+        this.player.floatX = nextX;
+      }
+      if (!this.world.isTileBlocked(Math.round(this.player.floatX), Math.round(nextY))) {
+        this.player.floatY = nextY;
+      }
+      this.player.tileX = Math.round(this.player.floatX);
+      this.player.tileY = Math.round(this.player.floatY);
+
+      // Sürtünme uygula
+      this.slipVX *= SLIPPERY_FRICTION;
+      this.slipVY *= SLIPPERY_FRICTION;
+
+      if (Math.abs(this.slipVX) < 0.01) this.slipVX = 0;
+      if (Math.abs(this.slipVY) < 0.01) this.slipVY = 0;
+    } else if (this.world.getTileType(this.player.tileX, this.player.tileY) !== 'slippery') {
+      // Kaygan tile üzerinde değil, sıfırla
+      this.slipVX = 0;
+      this.slipVY = 0;
+    }
+  }
+
+  // ─── Obstacle yavaşlatma ──────────────────────────────────────────────────
+
+  private _triggerObstacleSlowdown(): void {
+    this.isSlowed = true;
+    this.player.setSpeedMultiplier(0.3);
+    this.cameras.main.flash(150, 255, 50, 50);
+    this._floatText(this.player.x, this.player.y - 40, '⚠ ÇARPIŞMA!', '#ff8844');
+    this.time.delayedCall(OBSTACLE_SLOW_DURATION, () => {
+      this.isSlowed = false;
+      this.player.setSpeedMultiplier(1.0);
+    });
   }
 
   // ─── Highlight ────────────────────────────────────────────────────────────
@@ -403,7 +583,6 @@ export class GameScene extends Phaser.Scene {
     this.sound_.forkliftDismount();
     this.player.setVisible(true);
 
-    // Forklift'ten çıkarken raf tile'ına denk gelme ihtimaline karşı farklı yönleri dene
     const candidates = [
       { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }, { dx: 1, dy: 0 },
     ];
@@ -495,6 +674,18 @@ export class GameScene extends Phaser.Scene {
     this.events.emit('carryUpdate', null);
   }
 
+  // ─── Kırılgan kutu expired ────────────────────────────────────────────────
+
+  private _onBoxExpired(box: BeerBox): void {
+    if (!this.boxes.includes(box)) return;
+    this._floatText(box.x, box.y - 30, '💥 BOZULDU!', '#ff6600');
+    this.cameras.main.flash(150, 255, 100, 0);
+    this._destroyBox(box);
+    this.totalBoxes--;
+    this.events.emit('boxesUpdate', this.totalBoxes - this.deliveredBoxes, this.totalBoxes);
+    this._checkLevelComplete();
+  }
+
   // ─── Ortak yardımcılar ────────────────────────────────────────────────────
 
   private _onBoxDelivered(box: BeerBox, cx: number, cy: number): void {
@@ -522,7 +713,6 @@ export class GameScene extends Phaser.Scene {
     this._floatText(cx, cy - 40, `-${PENALTY_TIME} SN!`, '#ff4444');
   }
 
-  /** Teslim parçacığı patlaması — renkli küçük kareler dışa fırlar. */
   private _burst(cx: number, cy: number, color: number): void {
     const count = 8;
     for (let i = 0; i < count; i++) {
@@ -556,10 +746,21 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private _getActiveMechanics(): string[] {
+    const list: string[] = [];
+    if (this.levelConfig.obstacleCount > 0)    list.push('ENGELx' + this.levelConfig.obstacleCount);
+    if (this.levelConfig.fragileBoxRatio > 0)  list.push('KIRIGAN');
+    if (this.levelConfig.hasConveyor)           list.push('BANT');
+    if (this.levelConfig.hasSlippery)           list.push('KAYGAN');
+    return list;
+  }
+
   // ─── Level akışı ──────────────────────────────────────────────────────────
 
   private _checkLevelComplete(): void {
+    if (this.levelCompleting) return;
     if (!this.shelves.every(s => s.isFull())) return;
+    this.levelCompleting = true;
 
     this.timer.stop();
     const remaining = this.timer.getRemaining();

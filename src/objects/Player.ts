@@ -20,6 +20,13 @@ export class Player extends Phaser.GameObjects.Container {
 
   isCarrying: boolean = false;
 
+  /** Hız çarpanı — obstacle yavaşlatması için */
+  private speedMultiplier: number = 1.0;
+
+  /** Kaygan zemin momentum hız vektörü */
+  slipVX: number = 0;
+  slipVY: number = 0;
+
   private world: IsoWorld;
   private sprite: Phaser.GameObjects.Sprite;
   private lastIsoDir: IsoDirection = 'se';
@@ -44,11 +51,15 @@ export class Player extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
+  setSpeedMultiplier(m: number): void {
+    this.speedMultiplier = m;
+  }
+
   /** Her frame çağrılır — smooth fractional-tile hareketi uygular. */
   update(input: InputHandler, delta: number): void {
     const dir = input.getDirection();
     const vec = input.getMovementVector();
-    const speed = this.isCarrying ? PLAYER_CARRY_SPEED : PLAYER_SPEED;
+    const speed = (this.isCarrying ? PLAYER_CARRY_SPEED : PLAYER_SPEED) * this.speedMultiplier;
     const slow = input.isShiftDown() ? 0.45 : 1;
     const dt = delta / 1000;
 
