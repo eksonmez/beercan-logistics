@@ -42,7 +42,7 @@ export class Player extends Phaser.GameObjects.Container {
     this.tileY = tileY;
     this.world = world;
 
-    this.sprite = scene.add.sprite(0, 0, AssetKeys.PLAYER.SHEET, 0);
+    this.sprite = scene.add.sprite(0, 0, AssetKeys.PLAYER.IDLE_PNG, 0);
     this.sprite.setOrigin(0.5, 1);
     this.add(this.sprite);
 
@@ -101,6 +101,9 @@ export class Player extends Phaser.GameObjects.Container {
     if (dir !== 'none') {
       this.lastIsoDir = directionToIso(dir);
     }
+
+    // sw/nw için se/ne texture'larını yatay aynalayarak kullan
+    this.sprite.setFlipX(this.lastIsoDir === 'sw' || this.lastIsoDir === 'nw');
 
     const animKey = this._resolveAnimKey(isMoving);
     this._playAnim(animKey);

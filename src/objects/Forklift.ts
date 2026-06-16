@@ -39,7 +39,7 @@ export class Forklift extends Phaser.GameObjects.Container {
     this.floatY = tileY;
     this.world = world;
 
-    this.sprite = scene.add.sprite(0, 0, AssetKeys.FORKLIFT.SHEET, 0);
+    this.sprite = scene.add.sprite(0, 0, AssetKeys.FORKLIFT.SE_PNG);
     this.sprite.setOrigin(0.5, 1);
     this.add(this.sprite);
 

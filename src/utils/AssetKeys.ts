@@ -24,11 +24,21 @@ export const AssetKeys = {
     WALK_NW: 'player_walk_nw',
     IDLE: 'player_idle',
     CARRY: 'player_carry',
+    // Aseprite PNG asset keys (per-direction)
+    IDLE_PNG: 'player_idle_png',
+    WALK_SE_PNG: 'player_walk_se_png',
+    WALK_NE_PNG: 'player_walk_ne_png',
+    CARRY_SE_PNG: 'player_carry_se_png',
+    CARRY_NE_PNG: 'player_carry_ne_png',
   },
   FORKLIFT: {
     SHEET: 'forklift_sheet',
     IDLE: 'forklift_idle',
     MOVE: 'forklift_move',
+    NE_PNG: 'forklift_ne_png',
+    SE_PNG: 'forklift_se_png',
+    SW_PNG: 'forklift_sw_png',
+    NW_PNG: 'forklift_nw_png',
   },
   BOXES: {
     LAGER: 'box_lager',
