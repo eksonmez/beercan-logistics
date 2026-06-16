@@ -680,6 +680,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.boxes.includes(box)) return;
     this._floatText(box.x, box.y - 30, '💥 BOZULDU!', '#ff6600');
     this.cameras.main.flash(150, 255, 100, 0);
+    const shelf = this.shelves.find(s => s.acceptedType === box.beerType);
+    shelf?.reduceCapacity();
     this._destroyBox(box);
     this.totalBoxes--;
     this.events.emit('boxesUpdate', this.totalBoxes - this.deliveredBoxes, this.totalBoxes);

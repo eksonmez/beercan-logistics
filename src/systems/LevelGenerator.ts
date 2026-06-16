@@ -45,10 +45,14 @@ export class LevelGenerator {
   /** Raf pozisyonlarını ve konfigürasyonunu üretir. */
   static generateShelves(config: LevelConfig): ShelfData[] {
     const shelves: ShelfData[] = [];
-    const boxesPerType = Math.ceil(config.boxCount / config.beerTypes.length);
+    const typeCount = config.beerTypes.length;
+    // Kutu üretimiyle aynı round-robin dağılımı: raf kapasitesi tipe göre değişebilir
+    const capacityPerType = Array(typeCount).fill(0) as number[];
+    for (let i = 0; i < config.boxCount; i++) capacityPerType[i % typeCount]++;
+
     const shelfX = config.mapWidth - 4;
     const usableRows = config.mapHeight - 2;
-    const spacing = Math.max(1, Math.floor(usableRows / config.beerTypes.length));
+    const spacing = Math.max(1, Math.floor(usableRows / typeCount));
 
     config.beerTypes.forEach((type, i) => {
       shelves.push({
@@ -56,7 +60,7 @@ export class LevelGenerator {
         tileX: shelfX,
         tileY: 1 + i * spacing,
         acceptedType: type,
-        capacity: boxesPerType,
+        capacity: capacityPerType[i],
         currentCount: 0,
       });
     });

@@ -97,54 +97,57 @@ export class UIScene extends Phaser.Scene {
   private _listenEvents(): void {
     const game = this.scene.get('GameScene');
 
-    game.events.on('timerUpdate', (remaining: number) => {
-      const m = Math.floor(remaining / 60);
-      const s = remaining % 60;
-      this.timerText.setText(`${m}:${String(s).padStart(2, '0')}`);
+    const handlers: Array<[string, (...args: any[]) => void]> = [
+      ['timerUpdate', (remaining: number) => {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        this.timerText.setText(`${m}:${String(s).padStart(2, '0')}`);
 
-      if (remaining <= 10) {
-        this.timerText.setStyle({ color: '#ff3030' });
-        this._pulseTimer();
-      } else if (remaining <= 30) {
-        this.timerText.setStyle({ color: '#ff8844' });
-      } else {
-        this.timerText.setStyle({ color: '#44ff88' });
-      }
-    });
+        if (remaining <= 10) {
+          this.timerText.setStyle({ color: '#ff3030' });
+          this._pulseTimer();
+        } else if (remaining <= 30) {
+          this.timerText.setStyle({ color: '#ff8844' });
+        } else {
+          this.timerText.setStyle({ color: '#44ff88' });
+        }
+      }],
+      ['scoreUpdate', (score: number) => {
+        this.scoreText.setText(`★ ${score}`);
+        this.tweens.add({
+          targets: this.scoreText, scaleX: 1.15, scaleY: 1.15,
+          duration: 80, yoyo: true,
+        });
+      }],
+      ['levelUpdate', (level: number) => {
+        this.levelText.setText(`LVL ${level}`);
+      }],
+      ['boxesUpdate', (remaining: number, total: number) => {
+        this.boxesText.setText(`📦 ${remaining}/${total}`);
+        const pct = remaining / total;
+        const color = pct <= 0.25 ? '#44ff88' : pct <= 0.5 ? '#f5c542' : '#88aacc';
+        this.boxesText.setStyle({ color });
+        this.tweens.add({
+          targets: this.boxesText, scaleX: 1.2, scaleY: 1.2,
+          duration: 70, yoyo: true,
+        });
+      }],
+      ['carryUpdate', (type: BeerType | null) => {
+        this._updateCarry(type);
+      }],
+      ['modeUpdate', (mode: 'foot' | 'forklift') => {
+        this._updateMode(mode);
+      }],
+      ['activeMechanicsUpdate', (mechanics: string[]) => {
+        this.mechanicsText.setText(mechanics.join(' '));
+      }],
+    ];
 
-    game.events.on('scoreUpdate', (score: number) => {
-      this.scoreText.setText(`★ ${score}`);
-      this.tweens.add({
-        targets: this.scoreText, scaleX: 1.15, scaleY: 1.15,
-        duration: 80, yoyo: true,
-      });
-    });
+    handlers.forEach(([ev, fn]) => game.events.on(ev, fn));
 
-    game.events.on('levelUpdate', (level: number) => {
-      this.levelText.setText(`LVL ${level}`);
-    });
-
-    game.events.on('boxesUpdate', (remaining: number, total: number) => {
-      this.boxesText.setText(`📦 ${remaining}/${total}`);
-      const pct = remaining / total;
-      const color = pct <= 0.25 ? '#44ff88' : pct <= 0.5 ? '#f5c542' : '#88aacc';
-      this.boxesText.setStyle({ color });
-      this.tweens.add({
-        targets: this.boxesText, scaleX: 1.2, scaleY: 1.2,
-        duration: 70, yoyo: true,
-      });
-    });
-
-    game.events.on('carryUpdate', (type: BeerType | null) => {
-      this._updateCarry(type);
-    });
-
-    game.events.on('modeUpdate', (mode: 'foot' | 'forklift') => {
-      this._updateMode(mode);
-    });
-
-    game.events.on('activeMechanicsUpdate', (mechanics: string[]) => {
-      this.mechanicsText.setText(mechanics.join(' '));
+    // GameScene event emitter sahne stop/start arası persistent — shutdown'da temizle
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      handlers.forEach(([ev, fn]) => game.events.off(ev, fn));
     });
   }
 

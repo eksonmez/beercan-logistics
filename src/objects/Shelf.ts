@@ -18,7 +18,7 @@ const TYPE_LABELS: Record<BeerType, string> = {
 export class Shelf extends Phaser.GameObjects.Container {
   readonly shelfId: string;
   readonly acceptedType: BeerType;
-  readonly capacity: number;
+  capacity: number;
   readonly tileX: number;
   readonly tileY: number;
 
@@ -62,6 +62,15 @@ export class Shelf extends Phaser.GameObjects.Container {
 
   isFull(): boolean {
     return this.currentCount >= this.capacity;
+  }
+
+  /** Kapasiteyi 1 azaltır (örn. kırılgan kutu bozulduğunda) ve slot görselini günceller. */
+  reduceCapacity(): void {
+    if (this.capacity <= this.currentCount) return;
+    this.capacity--;
+    const removed = this.slots.pop();
+    removed?.destroy();
+    if (this.isFull()) this._playFullAnim();
   }
 
   getRemainingCapacity(): number {
